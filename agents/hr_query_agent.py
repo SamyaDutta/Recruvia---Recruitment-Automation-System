@@ -1,18 +1,15 @@
-from crewai import Agent
-from langchain_mistralai.chat_models import ChatMistralAI
+from crewai import Agent, LLM
 import os
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 class HRQueryAgent:
     @staticmethod
     def agent():
-        llm = ChatMistralAI(
-            api_key=os.getenv("MISTRAL_API_KEY"),
-            model="mistral/mistral-large-latest",
+        llm = LLM(
+            api_key=os.getenv("GROQ_API_KEY"),
+                model="openai/openai/gpt-oss-120b",
+            base_url="https://api.groq.com/openai/v1",
             temperature=0.3,  # Lower temperature for more consistent responses
-            max_retries=5,  # Add retry mechanism for API calls
-            retry_min_seconds=4,
-            retry_max_seconds=60
         )
         return Agent(
             role="HR Query Handler",
@@ -23,6 +20,7 @@ class HRQueryAgent:
             ),
             llm=llm,
             allow_delegation=True,
+            max_retry_limit=0,
             max_rpm=5,  # Limit requests per minute
             max_execution_time=300  # Allow more time for retries
         )

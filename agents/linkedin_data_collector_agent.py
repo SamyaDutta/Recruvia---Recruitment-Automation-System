@@ -2,7 +2,7 @@ import os
 import json
 import http.client
 from crewai import Agent
-from langchain_mistralai.chat_models import ChatMistralAI
+from crewai import LLM
 from crewai.tools import BaseTool
 from utils.db import DBManager
 from typing import List, Any
@@ -87,9 +87,10 @@ def store_profile_in_chromadb(profile_data):
 class LinkedInDataCollectorAgent:
     @staticmethod
     def agent():
-        llm = ChatMistralAI(
-            api_key=os.getenv("MISTRAL_API_KEY"),
-            model="mistral/mistral-large-latest"
+        llm = LLM(
+            api_key=os.getenv("GROQ_API_KEY"),
+                model="openai/openai/gpt-oss-120b",
+            base_url="https://api.groq.com/openai/v1"
         )
         
         # Create tool for the agent
@@ -101,6 +102,7 @@ class LinkedInDataCollectorAgent:
             backstory="Skilled in interfacing with external APIs, cleaning data and storing profiles efficiently.",
             llm=llm,
             allow_delegation=False,
+            max_retry_limit=0,
             tools=[collector_tool]
         )
 

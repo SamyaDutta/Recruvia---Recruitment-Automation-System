@@ -8,8 +8,8 @@ from dotenv import load_dotenv
 from tasks.hr_tasks import HRTasks
 from crewai import Crew, Process
 from utils.db import DBManager
-from langchain_mistralai import MistralAIEmbeddings
 from agents.reporting_agent import ReportingAgent
+from agents.gmail_scheduler_agent import send_interview_emails
 import tenacity
 from tenacity import retry, stop_after_attempt, wait_exponential
 from fpdf import FPDF
@@ -154,6 +154,20 @@ if 'report_generated' not in st.session_state:
 if 'final_report' not in st.session_state:
     st.session_state.final_report = ""
 
+def run_crew(crew):
+    """Run a crew and turn provider rate limits into a recoverable UI error."""
+    if not os.getenv("GROQ_API_KEY"):
+        st.error("GROQ_API_KEY is missing. Add your Groq API key to the .env file and restart the app.")
+        return None
+    try:
+        return crew.kickoff()
+    except Exception as error:
+        error_text = str(error).lower()
+        if "429" in error_text or "rate_limit" in error_text or "rate limited" in error_text:
+            st.error("Groq API rate limit reached. Please wait and try again, or check your Groq Console limits.")
+            return None
+        raise
+
 # Helper function to load synthetic profiles into ChromaDB
 @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=4, max=10))
 def load_synthetic_profiles():
@@ -171,9 +185,6 @@ def load_synthetic_profiles():
             
             # Create a new collection
             collection = db_manager.get_collection("linkedin_profiles")
-            
-            # Create embeddings using MistralAI
-            embedding_fn = MistralAIEmbeddings(model="mistral-embed", api_key=os.getenv('MISTRAL_API_KEY'))
             
             # Process each profile and add to ChromaDB
             processed = 0
@@ -248,7 +259,9 @@ def handle_hr_query(query):
             verbose=True
         )
         
-        answer = response_crew.kickoff()
+        answer = run_crew(response_crew)
+        if answer is None:
+            return
         
         # Add agent response to chat history
         st.session_state.chat_history.append({"role": "assistant", "content": str(answer)})
@@ -276,7 +289,9 @@ def generate_report():
             process=Process.sequential
         )
         
-        final_report = reporting_crew.kickoff()
+        final_report = run_crew(reporting_crew)
+        if final_report is None:
+            return None
         
         # Store the final report in recruitment data and session state
         st.session_state.recruitment_data["report"] = str(final_report)
@@ -297,7 +312,9 @@ def process_job_role(job_role):
             verbose=True
         )
         
-        crew_output = query_crew.kickoff()
+        crew_output = run_crew(query_crew)
+        if crew_output is None:
+            return None
         job_details = str(crew_output)
         interpreted_job_role = job_details.strip().replace("Job Role:", "").strip()
         
@@ -320,7 +337,9 @@ def find_profiles(job_role):
             verbose=True
         )
         
-        similar_profiles = profile_crew.kickoff()
+        similar_profiles = run_crew(profile_crew)
+        if similar_profiles is None:
+            return None
         
         # Store profiles in recruitment data and reporting context
         st.session_state.recruitment_data["profiles"] = str(similar_profiles)
@@ -341,7 +360,9 @@ def screen_cvs(job_role):
             verbose=True
         )
         
-        screened_results = screening_crew.kickoff()
+        screened_results = run_crew(screening_crew)
+        if screened_results is None:
+            return None
         
         # Store screening results in recruitment data and reporting context
         st.session_state.recruitment_data["screening"] = str(screened_results)
@@ -352,8 +373,6 @@ def screen_cvs(job_role):
 
 # Function to schedule interviews
 def schedule_interviews():
-    hr_tasks = HRTasks()
-    
     with st.spinner("Scheduling interviews..."):
         # For demo purposes, use a predefined list of candidate emails
         candidate_emails = ["duttasamya29@gmail.com", "rajashikdatta215@gmail.com", "rdeysarkar30@gmail.com", "msanchari36@gmail.com"]
@@ -361,14 +380,11 @@ def schedule_interviews():
         # Get job role from session state or use default
         job_role = st.session_state.get("job_role", "Software Engineer")
         
-        # Step 4: Schedule interviews using Gmail Scheduler with job role
-        scheduling_crew = Crew(
-            agents=[hr_tasks.gmail_scheduler_agent()],
-            tasks=[hr_tasks.schedule_interviews(candidate_emails, job_role=job_role)],
-            verbose=True
-        )
-        
-        scheduling_results = scheduling_crew.kickoff()
+        try:
+            scheduling_results = send_interview_emails(candidate_emails, job_role)
+        except Exception as error:
+            st.error(str(error))
+            return None
         
         # Store scheduling results in recruitment data and reporting context
         st.session_state.recruitment_data["scheduling"] = str(scheduling_results)
@@ -475,7 +491,8 @@ if page == "Dashboard":
         if submitted and job_role_input:
             # Process the job role
             interpreted_job_role = process_job_role(job_role_input)
-            st.success(f"Job role interpreted as: {interpreted_job_role}")
+            if interpreted_job_role:
+                st.success(f"Job role interpreted as: {interpreted_job_role}")
     
     # Show workflow steps in columns
     col1, col2, col3 = st.columns(3)
@@ -485,9 +502,10 @@ if page == "Dashboard":
         if st.session_state.job_role and not st.session_state.profiles_found:
             if st.button("Find Profiles"):
                 similar_profiles = find_profiles(st.session_state.job_role)
-                st.success("Matching profiles found!")
-                with st.expander("Show Matching Profiles"):
-                    st.text(similar_profiles)
+                if similar_profiles:
+                    st.success("Matching profiles found!")
+                    with st.expander("Show Matching Profiles"):
+                        st.text(similar_profiles)
         elif st.session_state.profiles_found:
             st.success("✅ Profiles Found")
             with st.expander("Show Matching Profiles"):
@@ -498,9 +516,10 @@ if page == "Dashboard":
         if st.session_state.profiles_found and not st.session_state.cvs_screened:
             if st.button("Screen CVs"):
                 screened_results = screen_cvs(st.session_state.job_role)
-                st.success("CV screening completed!")
-                with st.expander("Show Screening Results"):
-                    st.text(screened_results)
+                if screened_results:
+                    st.success("CV screening completed!")
+                    with st.expander("Show Screening Results"):
+                        st.text(screened_results)
         elif st.session_state.cvs_screened:
             st.success("✅ Candidates Screened")
             with st.expander("Show Screening Results"):
@@ -511,9 +530,10 @@ if page == "Dashboard":
         if st.session_state.cvs_screened and not st.session_state.interviews_scheduled:
             if st.button("Schedule Interviews"):
                 scheduling_results = schedule_interviews()
-                st.success("Interviews scheduled!")
-                with st.expander("Show Scheduling Details"):
-                    st.text(scheduling_results)
+                if scheduling_results:
+                    st.success("Interviews scheduled!")
+                    with st.expander("Show Scheduling Details"):
+                        st.text(scheduling_results)
         elif st.session_state.interviews_scheduled:
             st.success("✅ Interviews Scheduled")
             with st.expander("Show Scheduling Details"):

@@ -2,8 +2,7 @@
 # This agent can handle various HR-related queries and provide responses based on database information
 
 import os
-from crewai import Agent
-from langchain_mistralai.chat_models import ChatMistralAI
+from crewai import Agent, LLM
 from utils.db import DBManager
 from crewai.tools import BaseTool
 from typing import Optional, Dict, Any
@@ -36,9 +35,10 @@ class QueryResponseAgent:
         if recruitment_data:
             QueryResponseAgent.recruitment_data = recruitment_data
             
-        llm = ChatMistralAI(
-            api_key=os.getenv("MISTRAL_API_KEY"),
-            model="mistral/mistral-large-latest"
+        llm = LLM(
+            api_key=os.getenv("GROQ_API_KEY"),
+                model="openai/openai/gpt-oss-120b",
+            base_url="https://api.groq.com/openai/v1"
         )
         
         # Create the tools
@@ -54,6 +54,7 @@ class QueryResponseAgent:
                       "insights on the recruitment process."),
             llm=llm,
             allow_delegation=False,
+            max_retry_limit=0,
             tools=[query_tool, report_tool]
         )
 

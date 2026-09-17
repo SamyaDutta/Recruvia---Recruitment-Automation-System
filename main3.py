@@ -6,7 +6,7 @@ from crewai import Crew, Process
 import os
 import pandas as pd
 from utils.db import DBManager
-from langchain_mistralai import MistralAIEmbeddings
+from agents.gmail_scheduler_agent import send_interview_emails
 
 load_dotenv()
 
@@ -66,9 +66,6 @@ def load_synthetic_profiles():
     
     # Create a new collection
     collection = db_manager.get_collection("linkedin_profiles")
-    
-    # Create embeddings using MistralAI
-    embedding_fn = MistralAIEmbeddings(model="mistral-embed", api_key=os.getenv('MISTRAL_API_KEY'))
     
     # Process each profile and add to ChromaDB
     processed = 0
@@ -174,12 +171,7 @@ def main():
     # Step 4: Schedule interviews using Gmail Scheduler. 
     # For demo purposes, use a predefined list of candidate emails.
     candidate_emails = ["rayan.baitalik@gmail.com", "majumdarshrija223@gmail.com"]
-    scheduling_crew = Crew(
-        agents=[hr_tasks.gmail_scheduler_agent()],
-        tasks=[hr_tasks.schedule_interviews(candidate_emails, job_role=job_role)],
-        verbose=True
-    )
-    scheduling_results = scheduling_crew.kickoff()
+    scheduling_results = send_interview_emails(candidate_emails, job_role)
     print("Scheduling results:")
     print(scheduling_results)
     

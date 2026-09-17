@@ -1,8 +1,7 @@
 #ADVANCED SIMILARITY SEARCH
 
 import os
-from crewai import Agent
-from langchain_mistralai.chat_models import ChatMistralAI
+from crewai import Agent, LLM
 from utils.db import DBManager
 from crewai.tools import BaseTool
 from typing import Optional, Dict, Any
@@ -19,9 +18,10 @@ class ProfileSearchTool(BaseTool):
 class ProfileFinderAgent:
     @staticmethod
     def agent():
-        llm = ChatMistralAI(
-            api_key=os.getenv("MISTRAL_API_KEY"),
-            model="mistral/mistral-large-latest"
+        llm = LLM(
+            api_key=os.getenv("GROQ_API_KEY"),
+                model="openai/openai/gpt-oss-120b",
+            base_url="https://api.groq.com/openai/v1"
         )
         
         # Create the profile search tool
@@ -34,6 +34,7 @@ class ProfileFinderAgent:
             backstory="Expert at leveraging vector search for recruitment tasks.",
             llm=llm,
             allow_delegation=False,
+            max_retry_limit=0,
             tools=[profile_tool]
         )
 

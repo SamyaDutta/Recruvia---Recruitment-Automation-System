@@ -2,7 +2,7 @@ import http.client
 import json
 import os
 from crewai import Agent
-from langchain_mistralai.chat_models import ChatMistralAI
+from crewai import LLM
 
 
 def search_linkedin_profiles(query, api_key):
@@ -39,9 +39,10 @@ class LinkedInSearchAgent:
     @staticmethod
     def agent():
         # The agent only wraps the functionality for logging and describing its role
-        llm = ChatMistralAI(
-            api_key=os.getenv("MISTRAL_API_KEY"),
-            model="mistral/mistral-large-latest"
+        llm = LLM(
+            api_key=os.getenv("GROQ_API_KEY"),
+                model="openai/openai/gpt-oss-120b",
+            base_url="https://api.groq.com/openai/v1"
         )
         return Agent(
             role="LinkedIn Search Agent",
@@ -49,6 +50,7 @@ class LinkedInSearchAgent:
             backstory="Efficiently extract LinkedIn usernames by querying Google with a given job search string.",
             llm=llm,
             allow_delegation=False,
+            max_retry_limit=0,
             # Here you can bind the search function to the agent if your framework supports it
         )
 

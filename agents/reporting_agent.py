@@ -1,7 +1,6 @@
 #SHOULD BE ACC TO THE DATABASE ONLY
 
-from crewai import Agent
-from langchain_mistralai.chat_models import ChatMistralAI
+from crewai import Agent, LLM
 from utils.db import DBManager
 from crewai.tools import BaseTool
 import os
@@ -25,9 +24,10 @@ class ReportingAgent:
     
     @staticmethod
     def agent():
-        llm = ChatMistralAI(
-            api_key=os.getenv("MISTRAL_API_KEY"),
-            model="mistral/mistral-large-latest"  # Updated to use mistralai provider prefix
+        llm = LLM(
+            api_key=os.getenv("GROQ_API_KEY"),
+                model="openai/openai/gpt-oss-120b",
+            base_url="https://api.groq.com/openai/v1"
         )
         
         # Create the reporting tool
@@ -39,6 +39,7 @@ class ReportingAgent:
             backstory="An efficient summarizer and report generator for HR workflows that integrates recruitment data from multiple sources.",
             llm=llm,
             allow_delegation=False,
+            max_retry_limit=0,
             tools=[report_tool]
         )
     

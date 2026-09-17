@@ -2,11 +2,10 @@ crewai
 python-dotenv
 chromadb
 pandas
-mistralai
-langchain-mistralai
 langchain-community
 tenacity
 crewai[tools]
+litellm
 streamlit
 openpyxl
 fpdf

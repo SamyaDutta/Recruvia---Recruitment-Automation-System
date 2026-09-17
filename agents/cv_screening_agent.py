@@ -1,7 +1,6 @@
 #PROFILE SCREENING
 
-from crewai import Agent
-from langchain_mistralai.chat_models import ChatMistralAI
+from crewai import Agent, LLM
 from utils.db import DBManager
 from crewai.tools import BaseTool
 import os
@@ -19,9 +18,10 @@ class CVSearchTool(BaseTool):
 class CVScreeningAgent:
     @staticmethod
     def agent():
-        llm = ChatMistralAI(
-            api_key=os.getenv("MISTRAL_API_KEY"),
-            model="mistral/mistral-large-latest"
+        llm = LLM(
+            api_key=os.getenv("GROQ_API_KEY"),
+                model="openai/openai/gpt-oss-120b",
+            base_url="https://api.groq.com/openai/v1"
         )
         
         # Create the CV search and screening tool
@@ -34,6 +34,7 @@ class CVScreeningAgent:
             backstory="Highly skilled in analyzing CVs swiftly and accurately.",
             llm=llm,
             allow_delegation=False,
+            max_retry_limit=0,
             tools=[cv_tool]
         )
     
