@@ -18,6 +18,13 @@ import base64
 # Load environment variables
 load_dotenv()
 
+try:
+    for secret_name in ("GROQ_API_KEY", "GMAIL_SENDER", "GMAIL_PASSWORD"):
+        if secret_name in st.secrets:
+            os.environ[secret_name] = str(st.secrets[secret_name])
+except Exception:
+    pass
+
 # Configure Streamlit page settings
 st.set_page_config(
     page_title="RECRUVIA",
