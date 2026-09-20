@@ -108,7 +108,7 @@ class LinkedInDataCollectorAgent:
 
     @staticmethod
     def update_profiles(usernames):
-        rapidapi_key = os.getenv("RAPIDAPI_KEY", "9d945b1d2dmsh17ccfdbee0961bcp11f9dejsn618ca87f16d6")
+        rapidapi_key = os.getenv("RAPIDAPI_KEY")
         collected_profiles = []
         success_count = 0
         error_count = 0
